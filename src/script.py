@@ -6,39 +6,7 @@ import openpyxl
 from openpyxl.compat import range
 from openpyxl.cell import get_column_letter
 
-"""
-DATA CONFIG
-"""
-INDEX = 0
-NAME = 1
-SIZE = 6
-AMOUNT = 11
-MATERIAL = 12
-UNITS = 17
-MATERIAL_AMOUNT = 19
-STANDART = 21
-COMMENT = 24
-
-PAYLOAD_DATA_INDEXES = [
-    INDEX, NAME, SIZE, 
-    AMOUNT, MATERIAL, UNITS, 
-    MATERIAL_AMOUNT, STANDART, 
-    COMMENT
-]
-
-FISRT_LIST = 'Лист1'
-FISRT_LIST_FIRST_DATA_ROW = 22
-OTHER_LISTS_FIRST_DATA_ROW = 2
-
-REPEAT_SYMBOLS = ['——ıı——',]
-
-"""
-SCRIPT CONFIG
-"""
-DEFAULT_DIR_PATH = os.path.dirname(sys.argv[0])
-DEFUALT_RESULT_FILE_NAME = 'output.xls'
-DEFAULT_RESULT_FILE_PATH = \
-    os.path.join(DEFAULT_DIR_PATH, DEFUALT_RESULT_FILE_NAME)
+from config import *
 
 """
 LOGIC
@@ -140,13 +108,13 @@ def merge(rows):
         if match:
             output[output.index(match)] = merge_data(row, match)
     
-    filtered_output = []
+    ready_output = []
     index = 1
     for row in [[cell for cell_index, cell in enumerate(row) if cell_index in PAYLOAD_DATA_INDEXES] for row in output]:
         row[0] = index
-        filtered_output.append(row)
+        ready_output.append(row)
         index += 1
-    return filtered_output
+    return ready_output
 
 def build_results_file(rows, result_file_path):
     """
@@ -154,10 +122,10 @@ def build_results_file(rows, result_file_path):
     a given path.
     """
     wb = openpyxl.load_workbook('template.xlsx')
-    dest_filename = os.path.join(result_file_path, 'output.xlsx')
+    dest_filename = os.path.join(result_file_path, DEFAULT_RESULT_FILE_NAME)
     ws = wb.active   
     for row in rows:
-        ws.append([1,2])   
+        ws.append(row)   
     wb.save(filename = dest_filename)
 
 def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FILE_PATH):
@@ -176,8 +144,8 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
                             or row_index >= FISRT_LIST_FIRST_DATA_ROW:
                             rows_to_process.append(row) 
                             
-            merged_rows = merge(rows_to_process)
-            build_results_file(merged_rows, result_file_path) 
+            result = merge(rows_to_process)
+            build_results_file(result, result_file_path) 
             print('Success')
         else:
             print('No files to process')

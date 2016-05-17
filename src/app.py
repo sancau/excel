@@ -1,16 +1,23 @@
 
 from tkinter import *
 from tkinter import messagebox, filedialog
-from program import process_files
+
+from script import process_files
 
 root = Tk()
 
 TITLE = 'ЦНИИ РТК'
 src = StringVar()
+
+# DEBUG ONLY
 src.set('c:/kub')
+
 #src.set('Не задана')
 dest = StringVar()
+
+# DEBUG ONLY
 dest.set('c:/kub_output')
+
 #dest.set('Не задана')
 
 def choose_source():
