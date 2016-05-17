@@ -1,8 +1,10 @@
-# coding=utf-8
 
 import re
 import os, sys
 import openpyxl
+
+from openpyxl.compat import range
+from openpyxl.cell import get_column_letter
 
 """
 DATA CONFIG
@@ -52,7 +54,6 @@ def get_files(dir_path=DEFAULT_DIR_PATH):
             filename, file_extension = os.path.splitext(file)
             if file_extension in ['.xls', '.xlsx']:
                 file_path = os.path.join(path, file)
-                # print(file_path)
                 result.append(file_path)   
     return result
 
@@ -80,15 +81,7 @@ def merge(rows):
     filtered_rows = [
         row for row in plain_rows if row[NAME] is not None and row[INDEX] is not None
     ] 
-    
-    # print('Данные после импорта файлов и первичной фильтрации:')
-    # print('Index | Name | Size | Amount | Material | Units | Material Amount | Standart | Comment')
-    # print('___________________________________________________')
-    # print(' ')
-    
-    # for row in [[cell for cell_index, cell in enumerate(row) if cell_index in PAYLOAD_DATA_INDEXES] for row in filtered_rows]:
-        # print(row)
-    
+       
     def remove_spaces(value):
         """
         Returns given string with all the spaces removed.
@@ -107,27 +100,22 @@ def merge(rows):
         """
         standart_match = [r for r in output if remove_spaces(r[STANDART]) == remove_spaces(row[STANDART])]
         if not standart_match:
-            # print('adding by "STANDART": ', row[STANDART])
             output.append(row)
             return None
         else:
             material_match = [r for r in standart_match if remove_spaces(r[MATERIAL]) == remove_spaces(row[MATERIAL])]
             if not material_match:
-                # print('adding by "MATERIAL": ', row[MATERIAL])
                 output.append(row)
                 return None
             else:
                 size_match = [r for r in material_match if get_size(r) == get_size(row)]
                 if not size_match:
-                    # print('adding by "SIZE": ', row[SIZE])
                     output.append(row)
                     return None
                 else:
                     print('Found %s merge candidates!' % len(size_match))
                     if len(size_match) > 1:
                         raise Exception('MORE THEN 1 MERGE CANDIDATE WAS FOUND. PARSING ALGORYTHM IS INVALID!') 
-                    # print('for merge: %s' % row)
-                    # print('host row: %s' % size_match[0])
                     return size_match[0]
                  
     def merge_data(new, existed):
@@ -137,24 +125,15 @@ def merge(rows):
         Apply merge politics here to inject new in existed.
         """
         print('Merging...')
-        # print(new)
-        # print(existed)
         if existed[NAME] != new[NAME]:
-            # print('Names are different')
             existed[NAME] = ', '.join([existed[NAME], new[NAME]])
-            # print('Name set to %s:' % existed[NAME])
-        # print('Merging sizes / amounts...')
         size_amount_existed = ', '.join([str(existed[SIZE]), str(existed[AMOUNT])])
         size_amount_new = ', '.join([str(new[SIZE]), str(new[AMOUNT])])
         existed[SIZE] = '; '.join([size_amount_existed, size_amount_new])
-        # print('Merge result: ')
-        # print(existed)
         return existed
   
     output = []
-    # print(' ')
     print('Processing output...')
-    # print(' ')
     for row in filtered_rows:
         match = get_match(row, output)
         print(len(output))
@@ -169,12 +148,17 @@ def merge(rows):
         index += 1
     return filtered_output
 
-def build_results_file(results_dict, results_file_path=DEFAULT_RESULT_FILE_PATH):
+def build_results_file(rows, result_file_path):
     """
     Build an excel file based on results dict and 
     a given path.
     """
-    pass
+    wb = openpyxl.load_workbook('template.xlsx')
+    dest_filename = os.path.join(result_file_path, 'output.xlsx')
+    ws = wb.active   
+    for row in rows:
+        ws.append([1,2])   
+    wb.save(filename = dest_filename)
 
 def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FILE_PATH):
     try:
@@ -193,12 +177,7 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
                             rows_to_process.append(row) 
                             
             merged_rows = merge(rows_to_process)
-            
-            # print('MERGE RESULT: ')
-            # for row in merged_rows:
-                # print(row)
-                
-            build_results_file(merged_rows) 
+            build_results_file(merged_rows, result_file_path) 
             print('Success')
         else:
             print('No files to process')
@@ -206,6 +185,3 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
     except Exception as ex:
         print('Error while processing')
         print(ex)
-
-# dir_path = 'C:/kub'
-# process_files(dir_path)
