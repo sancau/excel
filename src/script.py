@@ -56,65 +56,86 @@ def merge(rows):
         """
         return re.sub('[\s+]', '', str(value))
     
-    def get_size(row):
+    def get_primary_size(size_str):
         """
         Returns main size criteria for a given row.
         """
         return remove_spaces(str(row[SIZE])).split('×')[0]
            
-    def get_match(row, output):
+    def merge(output, row):
         """
         Checks if given row has a match in output array.
         """
-        standart_match = [r for r in output if remove_spaces(r[STANDART]) == remove_spaces(row[STANDART])]
-        if not standart_match:
-            output.append(row)
-            return None
-        else:
-            material_match = [r for r in standart_match if remove_spaces(r[MATERIAL]) == remove_spaces(row[MATERIAL])]
-            if not material_match:
-                output.append(row)
-                return None
-            else:
-                size_match = [r for r in material_match if get_size(r) == get_size(row)]
-                if not size_match:
-                    output.append(row)
-                    return None
-                else:
-                    print('Found %s merge candidates!' % len(size_match))
-                    if len(size_match) > 1:
-                        raise Exception('MORE THEN 1 MERGE CANDIDATE WAS FOUND. PARSING ALGORYTHM IS INVALID!') 
-                    return size_match[0]
-                 
-    def merge_data(new, existed):
-        """
-        Appends row data to an existed row if match was confirmed.
-        
-        Apply merge politics here to inject new in existed.
-        """
-        print('Merging...')
-        if existed[NAME] != new[NAME]:
-            existed[NAME] = ', '.join([existed[NAME], new[NAME]])
-        size_amount_existed = ', '.join([str(existed[SIZE]), str(existed[AMOUNT])])
-        size_amount_new = ', '.join([str(new[SIZE]), str(new[AMOUNT])])
-        existed[SIZE] = '; '.join([size_amount_existed, size_amount_new])
-        return existed
-  
+        name_idex = 0
+        size_index = 2
+        standart_index = 6
+        units_index = 7
+        amount_index = 8
+        material_index = 9
+
+        def _(value):
+            if value:
+                return str(value)
+            return '-'
+        for item in row:
+            row[row.index(item)] = _(item)
+
+        def get_standard_match(array, candidate):
+            if not array:
+                return []
+            return [i for i in array if remove_spaces(i[standart_index]) \
+                == remove_spaces(candidate[STANDART])]
+
+        def get_material_match(array, candidate):
+            return [i for i in array if remove_spaces(i[material_index]) \
+                == remove_spaces(candidate[MATERIAL])]
+
+        def get_primary_size_match(array, candidate):
+            return 0
+
+        def size_equal(array_row, candidate):
+            return False
+
+        def make_new(candidate):
+            new = [
+                row[NAME] + ', ' + row[MATERIAL],
+                '-',
+                row[SIZE] + ', ' + row[AMOUNT] + ' ' + row[UNITS] + ';',
+                '-',
+                '-',
+                '-',
+                row[STANDART],
+                row[UNITS],
+                row[AMOUNT],
+                '-',
+                row[MATERIAL]
+            ]
+            output.append(new)
+
+        standart_match = get_standard_match(output, row)
+        if standart_match:
+            print('совпадений по ГОСТ: %s' % len(standart_match))
+            material_match = get_material_match(standart_match, row)
+            if material_match:
+                print('совпадений по МАТЕРИАЛ: %s' % len(material_match))
+                print(material_match)
+                primary_size_match = get_primary_size_match(material_match, row)
+                if primary_size_match:
+                    print('FOUND MERGE CANDIDATE')
+                    if size_equal(primary_size_match, row):
+                        # SUM AMOUNTS
+                        pass
+                    else:
+                        # ADD SIZE / AMOUNT
+                        pass
+        make_new(row)
+        return output
+                  
     output = []
     print('Processing output...')
     for row in filtered_rows:
-        match = get_match(row, output)
-        print(len(output))
-        if match:
-            output[output.index(match)] = merge_data(row, match)
-    
-    ready_output = []
-    index = 1
-    for row in [[cell for cell_index, cell in enumerate(row) if cell_index in PAYLOAD_DATA_INDEXES] for row in output]:
-        row[0] = index
-        ready_output.append(row)
-        index += 1
-    return ready_output
+        output = merge(output, row)
+    return output
 
 def build_results_file(rows, result_file_path):
     """
@@ -140,7 +161,7 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
                         # add rows by certain condition
                         row_index = (lambda x: x[0].row)(row)
                         if (sheet is not workbook[FISRT_LIST] \
-                        and row_index >= OTHER_LISTS_FIRST_DATA_ROW) \
+                         and row_index >= OTHER_LISTS_FIRST_DATA_ROW) \
                             or row_index >= FISRT_LIST_FIRST_DATA_ROW:
                             rows_to_process.append(row) 
                             

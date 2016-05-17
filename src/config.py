@@ -33,12 +33,3 @@ DEFAULT_DIR_PATH = os.path.dirname(sys.argv[0])
 DEFAULT_RESULT_FILE_NAME = 'output.xlsx'
 DEFAULT_RESULT_FILE_PATH = os.path.join(DEFAULT_DIR_PATH, DEFAULT_RESULT_FILE_NAME)
 
-"""
-Output template config
-"""
-
-NAME_AND_MATERIAL = 1
-SIZES_AND_AMOUNTS = 3
-STANDART = 7
-UNITS = 8
-AMOUNT = 9
