@@ -47,10 +47,12 @@ def process():
     except Exception as ex:     
         messagebox.showinfo(TITLE, 'Ошибка при обработке файлов: %s' % ex)
 
-Button(root, text='Выбрать папку источник', command=choose_source).place(x=10, y=10)
+Button(root, text='Выбрать папку источник', 
+    command=choose_source).place(x=10, y=10)
 Label(root, textvariable=src).place(x=10, y=40)
 
-Button(root, text='Выбрать папку назначения', command=choose_destination).place(x=10, y=70)
+Button(root, text='Выбрать папку назначения', 
+    command=choose_destination).place(x=10, y=70)
 Label(root, textvariable=dest).place(x=10, y=100)
 
 Button(root, text='Обработка', command=process).place(x=10, y=130)

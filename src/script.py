@@ -47,7 +47,8 @@ def merge(rows):
     Else - add new key in dict
     """      
     filtered_rows = [
-        row for row in rows if row[NAME] is not None and row[INDEX] is not None
+        row for row in rows if row[NAME] is not None and \
+            row[INDEX] is not None
     ] 
     
     payloaded = []
@@ -134,7 +135,8 @@ def merge(rows):
             material_match = get_material_match(standart_match, row)
             if material_match:
                 print('совпадений по МАТЕРИАЛ: %s' % len(material_match))
-                primary_size_match = get_primary_size_match(material_match, row)
+                primary_size_match = \
+                    get_primary_size_match(material_match, row)
                 if primary_size_match:
                     print('FOUND MERGE CANDIDATE')
                     if size_equal(primary_size_match, row):
@@ -169,7 +171,8 @@ def build_results_file(rows, result_file_path):
         ws.append(row)   
     wb.save(filename = dest_filename)
    
-def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FILE_PATH):
+def process_files(dir_path=DEFAULT_DIR_PATH, 
+    result_file_path=DEFAULT_RESULT_FILE_PATH):
     try:
         files = get_files(dir_path)
         rows_to_process = []
