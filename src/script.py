@@ -25,6 +25,18 @@ def get_files(dir_path=DEFAULT_DIR_PATH):
                 result.append(file_path)   
     return result
 
+def getValueWithMergeLookup(sheet, cell):
+    idx = cell.coordinate
+    for range_ in sheet.merged_cell_ranges:
+        merged_cells = list(openpyxl.utils.rows_from_range(range_))
+        for row in merged_cells:
+            if idx in row:
+                # If this is a merged cell,
+                # return  the first cell of the merge range
+                return sheet.cell(merged_cells[0][0]).value
+
+    return sheet.cell(idx).value
+
 def merge(rows):
     """
     Parse a row of the table.
@@ -33,23 +45,27 @@ def merge(rows):
     If this key exists in the dict process its params
     and add the amount
     Else - add new key in dict
-    """
-    # clean data from openpyxl wrappers
-    plain_rows = []
-    for row in rows:
-        plain_row = [item.value for item in row]               
-        plain_rows.append(plain_row)
-    
-    #handle repeat sybmols
-    for row_index, plain_row in enumerate(plain_rows):
-        for value_index, value in enumerate(plain_row):
-            if value in REPEAT_SYMBOLS:
-                plain_row[value_index] = plain_rows[row_index - 1][value_index] 
-    
+    """      
     filtered_rows = [
-        row for row in plain_rows if row[NAME] is not None and row[INDEX] is not None
+        row for row in rows if row[NAME] is not None and row[INDEX] is not None
     ] 
-       
+    
+    payloaded = []
+    for row in filtered_rows:
+        payloaded_row = []
+        if type(row[0]) == int:
+            for idx in PAYLOAD_DATA_INDEXES:
+                payloaded_row.append(row[idx])
+            payloaded.append(payloaded_row)
+               
+    #handle repeat sybmols
+    for row_index, row in enumerate(payloaded):
+        for value_index, value in enumerate(row):
+            if value in REPEAT_SYMBOLS:
+                row[value_index] = payloaded[row_index - 1][value_index] 
+            elif value is None:
+                row[value_index] = '-'
+
     def remove_spaces(value):
         """
         Returns given string with all the spaces removed.
@@ -65,13 +81,13 @@ def merge(rows):
     def merge(output, row):
         """
         Checks if given row has a match in output array.
-        """
+        """        
         name_idex = 0
         size_index = 2
         standart_index = 6
         units_index = 7
         amount_index = 8
-        material_index = 9
+        material_index = 10
 
         def _(value):
             if value:
@@ -100,7 +116,7 @@ def merge(rows):
             new = [
                 row[NAME] + ', ' + row[MATERIAL],
                 '-',
-                row[SIZE] + ', ' + row[AMOUNT] + ' ' + row[UNITS] + ';',
+                [row[SIZE] + ', ' + row[AMOUNT] + ' ' + row[UNITS] + ';', ],
                 '-',
                 '-',
                 '-',
@@ -118,7 +134,6 @@ def merge(rows):
             material_match = get_material_match(standart_match, row)
             if material_match:
                 print('совпадений по МАТЕРИАЛ: %s' % len(material_match))
-                print(material_match)
                 primary_size_match = get_primary_size_match(material_match, row)
                 if primary_size_match:
                     print('FOUND MERGE CANDIDATE')
@@ -133,9 +148,12 @@ def merge(rows):
                   
     output = []
     print('Processing output...')
-    for row in filtered_rows:
-        output = merge(output, row)
-    return output
+    
+    # TODO 
+
+    # for row in payloaded:
+    #     output = merge(output, row)
+    return payloaded
 
 def build_results_file(rows, result_file_path):
     """
@@ -146,9 +164,11 @@ def build_results_file(rows, result_file_path):
     dest_filename = os.path.join(result_file_path, DEFAULT_RESULT_FILE_NAME)
     ws = wb.active   
     for row in rows:
+        for value_index, value in enumerate(row):
+            row[value_index] = str(value).encode('utf-8')
         ws.append(row)   
     wb.save(filename = dest_filename)
-
+   
 def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FILE_PATH):
     try:
         files = get_files(dir_path)
@@ -163,8 +183,14 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
                         if (sheet is not workbook[FISRT_LIST] \
                          and row_index >= OTHER_LISTS_FIRST_DATA_ROW) \
                             or row_index >= FISRT_LIST_FIRST_DATA_ROW:
-                            rows_to_process.append(row) 
                             
+                            merged_cells_awared_row = []
+                            for cell in row:
+                                value = getValueWithMergeLookup(sheet, cell)
+                                merged_cells_awared_row.append(value)
+                                                       
+                            rows_to_process.append(merged_cells_awared_row) 
+            
             result = merge(rows_to_process)
             build_results_file(result, result_file_path) 
             print('Success')
