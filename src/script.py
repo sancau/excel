@@ -1,6 +1,6 @@
 
 import re
-import os, sys
+import os, sys, traceback
 import openpyxl
 
 from openpyxl.compat import range
@@ -8,9 +8,16 @@ from openpyxl.cell import get_column_letter
 
 from config import *
 
+
 """
 LOGIC
-"""    
+""" 
+def remove_spaces(value):
+        """
+        Returns given string with all the spaces removed.
+        """
+        return re.sub('[\s+]', '', str(value))       
+            
 def get_files(dir_path=DEFAULT_DIR_PATH):
     """
     Returns list of excel file paths in
@@ -34,23 +41,15 @@ def getValueWithMergeLookup(sheet, cell):
                 # If this is a merged cell,
                 # return  the first cell of the merge range
                 return sheet.cell(merged_cells[0][0]).value
-
     return sheet.cell(idx).value
 
-def merge(rows):
+def pre_process(rows):
     """
-    Parse a row of the table.
-    Add data to result dict.
-    
-    If this key exists in the dict process its params
-    and add the amount
-    Else - add new key in dict
-    """      
+    Filters and preprocess data to make it ready for the merge.
+    """
     filtered_rows = [
-        row for row in rows if row[NAME] is not None and \
-            row[INDEX] is not None
-    ] 
-    
+        row for row in rows if row[NAME] is not None and row[INDEX] is not None
+    ]
     payloaded = []
     for row in filtered_rows:
         payloaded_row = []
@@ -58,7 +57,6 @@ def merge(rows):
             for idx in PAYLOAD_DATA_INDEXES:
                 payloaded_row.append(row[idx])
             payloaded.append(payloaded_row)
-               
     #handle repeat sybmols
     for row_index, row in enumerate(payloaded):
         for value_index, value in enumerate(row):
@@ -66,96 +64,115 @@ def merge(rows):
                 row[value_index] = payloaded[row_index - 1][value_index] 
             elif value is None:
                 row[value_index] = '-'
+            row[value_index] = str(row[value_index])
+    return payloaded 
 
-    def remove_spaces(value):
-        """
-        Returns given string with all the spaces removed.
-        """
-        return re.sub('[\s+]', '', str(value))
+
+class ExtraParamsObject:
+    def __init__(self, size, amount):
+        self.size = size
+        self.amount = amount
+
+        
+class OutputRow:
+    def form_extra_params(self, size, amount):
+        params = []
+        obj = ExtraParamsObject(size, amount)
+        params.append(obj)
+        return params
     
-    def get_primary_size(size_str):
-        """
-        Returns main size criteria for a given row.
-        """
-        return remove_spaces(str(row[SIZE])).split('×')[0]
-           
-    def merge(output, row):
-        """
-        Checks if given row has a match in output array.
-        """        
-        name_idex = 0
-        size_index = 2
-        standart_index = 6
-        units_index = 7
-        amount_index = 8
-        material_index = 10
+    def __init__(self, data):
+        data_index = 0
+        data_name = 1
+        data_size = 2
+        data_amount = 3
+        data_material = 4
+        data_units = 5
+        data_material_amount = 6
+        data_standart = 7
+        data_comment = 8
 
-        def _(value):
-            if value:
-                return str(value)
-            return '-'
-        for item in row:
-            row[row.index(item)] = _(item)
+        self.name_material = '%s - %s' % (data[data_name], data[data_material])
+        self.nomen = '-'
+        self.extra_params = self.form_extra_params(
+            data[data_size],
+            data[data_amount]
+        )  
+        self.nomen_number = '-'
+        self.code = '-'
+        self.category = '-'
+        self.standart = data[data_standart]
+        self.units = data[data_units]
+        self.amount = '-'
+        # service props
+        self.material = data[data_material]
+        self.primary_size = remove_spaces(str(data[data_size])).split('×')[0] 
+        self.name = data[data_name]
 
-        def get_standard_match(array, candidate):
-            if not array:
-                return []
-            return [i for i in array if remove_spaces(i[standart_index]) \
-                == remove_spaces(candidate[STANDART])]
+def merge_row(output, row):
+    """
+    Merges given row with existing output if need.
+    """
+    def is_match(existed, new):
+        return existed.standart == new.standart and \
+                existed.material == new.material and \
+                existed.primary_size == new.primary_size               
+    
+    new = OutputRow(row)
+    if not output:
+        output.append(new)
+    else:
+        match = [existed for existed in output if is_match(existed, new)]
+        if not match: output.append(new)
+        elif len(match) > 1: 
+            print('Invalid parsing algorythm')
+        else:
+            match = match[0]
+            merge_target = output[output.index(match)]
+            if not merge_target.name_material == new.name_material:
+                merge_target.name_material = ', '.join([new.name, merge_target.name_material])
+            print("match on primary size detected")
+            # check if size is equal
+            # if so merge like [s-a1+a2, ...]     
+            extra_param_equal = [item for item in match.extra_params \
+                      if item.size == new.extra_params[0].size]
+            if extra_param_equal:
+                equal = extra_param_equal[0]
+                print('size equal match detected')
+                for_edit = match.extra_params[match.extra_params.index(equal)]
+                # кол-во заготовок складывается
+                for_edit.amount = str(int(new.extra_params[0].amount) + int(for_edit.amount))
+                return output
+            # else merge in list [s-a; s-a...]
+            merge_target.extra_params += new.extra_params             
+    return output
 
-        def get_material_match(array, candidate):
-            return [i for i in array if remove_spaces(i[material_index]) \
-                == remove_spaces(candidate[MATERIAL])]
-
-        def get_primary_size_match(array, candidate):
-            return 0
-
-        def size_equal(array_row, candidate):
-            return False
-
-        def make_new(candidate):
-            new = [
-                row[NAME] + ', ' + row[MATERIAL],
-                '-',
-                [row[SIZE] + ', ' + row[AMOUNT] + ' ' + row[UNITS] + ';', ],
-                '-',
-                '-',
-                '-',
-                row[STANDART],
-                row[UNITS],
-                row[AMOUNT],
-                '-',
-                row[MATERIAL]
-            ]
-            output.append(new)
-
-        standart_match = get_standard_match(output, row)
-        if standart_match:
-            print('совпадений по ГОСТ: %s' % len(standart_match))
-            material_match = get_material_match(standart_match, row)
-            if material_match:
-                print('совпадений по МАТЕРИАЛ: %s' % len(material_match))
-                primary_size_match = \
-                    get_primary_size_match(material_match, row)
-                if primary_size_match:
-                    print('FOUND MERGE CANDIDATE')
-                    if size_equal(primary_size_match, row):
-                        # SUM AMOUNTS
-                        pass
-                    else:
-                        # ADD SIZE / AMOUNT
-                        pass
-        make_new(row)
-        return output
-                  
+def merge(rows):
     output = []
     print('Processing output...')
+    print(' ')
+    rows = pre_process(rows)
+    for row in rows:
+        output = merge_row(output, row)
     
-    # TODO 
-
-    # for row in payloaded:
-    #     output = merge(output, row)
-    return payloaded
+    to_file_format = []
+    for item in output:
+        obj = [
+            item.name_material,
+            item.nomen,
+            '; '.join([(', '.join([extra_param.size, extra_param.amount])) \
+                       for extra_param in item.extra_params]),
+            item.nomen_number,
+            item.code,
+            item.category,
+            item.standart,
+            item.units,
+            item.amount
+        ]
+        
+        to_file_format.append(obj)   
+        
+    return to_file_format
 
 def build_results_file(rows, result_file_path):
     """
@@ -171,8 +188,10 @@ def build_results_file(rows, result_file_path):
         ws.append(row)   
     wb.save(filename = dest_filename)
    
-def process_files(dir_path=DEFAULT_DIR_PATH, 
-    result_file_path=DEFAULT_RESULT_FILE_PATH):
+def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FILE_PATH):
+    """
+    Application level logic.
+    """
     try:
         files = get_files(dir_path)
         rows_to_process = []
@@ -185,21 +204,20 @@ def process_files(dir_path=DEFAULT_DIR_PATH,
                         row_index = (lambda x: x[0].row)(row)
                         if (sheet is not workbook[FISRT_LIST] \
                          and row_index >= OTHER_LISTS_FIRST_DATA_ROW) \
-                            or row_index >= FISRT_LIST_FIRST_DATA_ROW:
-                            
+                            or row_index >= FISRT_LIST_FIRST_DATA_ROW:                           
                             merged_cells_awared_row = []
                             for cell in row:
                                 value = getValueWithMergeLookup(sheet, cell)
-                                merged_cells_awared_row.append(value)
-                                                       
-                            rows_to_process.append(merged_cells_awared_row) 
-            
-            result = merge(rows_to_process)
-            build_results_file(result, result_file_path) 
+                                merged_cells_awared_row.append(value)                                                       
+                            rows_to_process.append(merged_cells_awared_row)                            
+            result = merge(rows_to_process) 
+            print(len(result))         
+            build_results_file(result, result_file_path)            
+            print(' ')
             print('Success')
         else:
-            print('No files to process')
-    
+            print('No files to process')    
     except Exception as ex:
         print('Error while processing')
         print(ex)
+        traceback.print_exc()
