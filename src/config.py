@@ -26,6 +26,21 @@ OTHER_LISTS_FIRST_DATA_ROW = 2
 
 REPEAT_SYMBOLS = ['——ıı——', ]
 
+AMOUNT_UNITS_VERBOSE = 'шт'
+
+SIZE_DICT = {
+    '≠': {
+        'verbose': 'ТОЛЩ.',
+        'units': 'ММ',
+    },
+    'Ø': {
+        'verbose': 'ДИАМ.',
+        'units': 'ММ'
+    }
+}
+
+UNDEFINED_SYMBOL = '(нет данных)'
+
 """
 Script config
 """

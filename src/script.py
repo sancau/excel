@@ -63,7 +63,7 @@ def pre_process(rows):
             if value in REPEAT_SYMBOLS:
                 row[value_index] = payloaded[row_index - 1][value_index] 
             elif value is None:
-                row[value_index] = '-'
+                row[value_index] = UNDEFINED_SYMBOL
             row[value_index] = str(row[value_index])
     return payloaded 
 
@@ -81,6 +81,17 @@ class OutputRow:
         params.append(obj)
         return params
     
+    def get_verbose_size(self, size):
+        size_char = self.primary_size[0]
+        if size_char in SIZE_DICT:
+            return ' '.join([
+                    SIZE_DICT[size_char]['verbose'],
+                    self.primary_size[1:],
+                    SIZE_DICT[size_char]['units']])
+        else:
+            return 'get_verbose_size returned null'
+            
+    
     def __init__(self, data):
         data_index = 0
         data_name = 1
@@ -91,8 +102,13 @@ class OutputRow:
         data_material_amount = 6
         data_standart = 7
         data_comment = 8
-
-        self.name_material = '%s - %s' % (data[data_name], data[data_material])
+        
+        # service props
+        self.material = data[data_material]
+        self.primary_size = remove_spaces(str(data[data_size])).split('×')[0] 
+        self.name = data[data_name]
+        
+        self.name_material = '%s %s %s' % (data[data_name], data[data_material], self.get_verbose_size(data[data_size]))
         self.nomen = '-'
         self.extra_params = self.form_extra_params(
             data[data_size],
@@ -103,11 +119,8 @@ class OutputRow:
         self.category = '-'
         self.standart = data[data_standart]
         self.units = data[data_units]
-        self.amount = '-'
-        # service props
-        self.material = data[data_material]
-        self.primary_size = remove_spaces(str(data[data_size])).split('×')[0] 
-        self.name = data[data_name]
+        self.amount = data[data_material_amount]
+
 
 def merge_row(output, row):
     """
@@ -154,14 +167,14 @@ def merge(rows):
     rows = pre_process(rows)
     for row in rows:
         output = merge_row(output, row)
-    
     to_file_format = []
     for item in output:
+        amount_units = ' '.join([item.amount, item.units])
         obj = [
             item.name_material,
             item.nomen,
-            '; '.join([(', '.join([extra_param.size, extra_param.amount])) \
-                       for extra_param in item.extra_params]),
+            '; '.join(['; '.join([(' - '.join([extra_param.size, ' '.join([extra_param.amount, AMOUNT_UNITS_VERBOSE])])) \
+                       for extra_param in item.extra_params]), amount_units, item.standart]),
             item.nomen_number,
             item.code,
             item.category,
@@ -170,6 +183,10 @@ def merge(rows):
             item.amount
         ]
         
+        for index, value in enumerate(obj):
+            if value == '-':
+                obj[index] = ''
+
         to_file_format.append(obj)   
         
     return to_file_format
@@ -211,7 +228,7 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
                                 merged_cells_awared_row.append(value)                                                       
                             rows_to_process.append(merged_cells_awared_row)                            
             result = merge(rows_to_process) 
-            print(len(result))         
+            print(len(result))            
             build_results_file(result, result_file_path)            
             print(' ')
             print('Success')
