@@ -149,6 +149,17 @@ def merge_row(output, row):
             # if so merge like [s-a1+a2, ...]     
             extra_param_equal = [item for item in match.extra_params \
                       if item.size == new.extra_params[0].size]
+            
+            try:
+                current_material_amount = float(merge_target.amount)           
+            except ValueError:
+                current_material_amount = 0
+            try:
+                new_material_amount = float(new.amount)
+            except ValueError:
+                new_material_amount = 0        
+            merge_target.amount = str(current_material_amount + new_material_amount)
+
             if extra_param_equal:
                 equal = extra_param_equal[0]
                 print('size equal match detected')
@@ -157,7 +168,7 @@ def merge_row(output, row):
                 for_edit.amount = str(int(new.extra_params[0].amount) + int(for_edit.amount))
                 return output
             # else merge in list [s-a; s-a...]
-            merge_target.extra_params += new.extra_params             
+            merge_target.extra_params += new.extra_params
     return output
 
 def merge(rows):
@@ -223,8 +234,11 @@ def process_files(dir_path=DEFAULT_DIR_PATH, result_file_path=DEFAULT_RESULT_FIL
                          and row_index >= OTHER_LISTS_FIRST_DATA_ROW) \
                             or row_index >= FISRT_LIST_FIRST_DATA_ROW:                           
                             merged_cells_awared_row = []
-                            for cell in row:
-                                value = getValueWithMergeLookup(sheet, cell)
+                            for cell_index, cell in enumerate(row):
+                                if cell_index == MATERIAL_AMOUNT:
+                                    value = cell.value
+                                else:
+                                    value = getValueWithMergeLookup(sheet, cell)
                                 merged_cells_awared_row.append(value)                                                       
                             rows_to_process.append(merged_cells_awared_row)                            
             result = merge(rows_to_process) 
