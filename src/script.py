@@ -196,11 +196,19 @@ def merge(rows):
     to_file_format = []
     for item in output:
         amount_units = ' '.join([item.amount, item.units])
+        size_amounts = [(' - '.join([extra_param.size, ' '.join([extra_param.amount, AMOUNT_UNITS_VERBOSE])])) \
+                       for extra_param in item.extra_params if extra_param.amount != UNDEFINED_SYMBOL]
+        if len(size_amounts):
+            print('huels')
+            params_string = '; '.join(['; '.join(size_amounts), amount_units, item.standart])
+        else:
+            print('else')
+            params_string = '; '.join([amount_units, item.standart])
+
         obj = [
             item.name_material,
             item.nomen,
-            '; '.join(['; '.join([(' - '.join([extra_param.size, ' '.join([extra_param.amount, AMOUNT_UNITS_VERBOSE])])) \
-                       for extra_param in item.extra_params]), amount_units, item.standart]),
+            params_string,
             item.nomen_number,
             item.code,
             item.category,

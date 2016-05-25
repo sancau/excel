@@ -7,13 +7,13 @@ from script import process_files
 root = Tk()
 TITLE = 'ЦНИИ РТК'
 src = StringVar()
-# src.set('Не задана')
+src.set('Не задана')
 # DEBUG ONLY
-src.set('c:/kub')
+# src.set('c:/kub')
 dest = StringVar()
-# dest.set('Не задана')
+dest.set('Не задана')
 # DEBUG ONLY
-dest.set('c:/kub_output')
+# dest.set('c:/kub_output')
 
 def choose_source():
     value = filedialog.askdirectory()
