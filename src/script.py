@@ -89,7 +89,21 @@ class OutputRow:
                     self.primary_size[1:],
                     SIZE_DICT[size_char]['units']])
         else:
-            return 'get_verbose_size returned null'
+            if self.name in ['Трубка', 'Плёнка', 'Пленка', 'Труба']:
+                return self.size + ' ММ'
+            if self.name == 'Припой':
+                return 'ДИАМ. ' + self.primary_size.split(',')[0][1:] + ' ММ'
+            if self.name == 'Провод':
+                return self.size
+            if self.name == 'Стеклолакоткань':
+                if '×' in self.size:
+                    return self.size + ' ММ'
+                else:
+                    return 'ТОЛЩ. ' + self.size + ' ММ'
+            if self.name == 'Гвозди':
+                return self.size[1:] + ' ММ'
+            else:
+                return ''
             
     
     def __init__(self, data):
@@ -104,6 +118,7 @@ class OutputRow:
         data_comment = 8
         
         # service props
+        self.size = data[data_size]
         self.material = data[data_material]
         self.primary_size = remove_spaces(str(data[data_size])).split('×')[0] 
         self.name = data[data_name]
